@@ -1,149 +1,94 @@
 #include "main.h"
-#include "lemlib/api.hpp"
-
 pros::Controller	master(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup		left_drive({-2, -3, -4},
-									pros::v5::MotorGears::blue,
-									pros::v5::MotorUnits::degrees);
-pros::MotorGroup		right_drive({5, 6, 7},
-									pros::v5::MotorGears::blue,
-									pros::v5::MotorUnits::degrees);
-
-pros::Motor				intake(8,
+pros::MotorGroup				intake({8, -9},
 								pros::v5::MotorGears::green,
 								pros::v5::MotorUnits::degrees);
 
-pros::adi::DigitalOut	front_left_wing('A', false);
-pros::adi::DigitalOut	front_right_wing('B', false);
-pros::adi::DigitalOut	back_left_wing('C', false);
-pros::adi::DigitalOut	back_right_wing('D', false);
+/**
+ * A callback function for LLEMU's center button.
+ *
+ * When this callback is fired, it will toggle line 2 of the LCD text between
+ * "I was pressed!" and nothing.
+ */
+void on_center_button() {
+}
 
-pros::Imu				imu(9);
-pros::Rotation			y_tracking(10);
-pros::Rotation			x_tracking(11);
-
-lemlib::Drivetrain drivetrain {
-	&left_drive, // left motor group
-	&right_drive, // right motor group
-	00000000000000000, // " track width
-	3.25, // using new 3.25" omnis
-	360, // drivetrain rpm is 360
-	000000000000000
-};
-
-lemlib::TrackingWheel x_tracking_wheel(
-	&x_tracking, // encoder
-	3.25,
-	00000000000000 // " offset from tracking center
-);
-
-lemlib::TrackingWheel y_tracking_wheel(
-	&y_tracking, // encoder
-	3.25,
-	000000000000000 // " offset from tracking center
-);
-
-lemlib::OdomSensors sensors {
-	&y_tracking_wheel, // vertical tracking wheel 1
-	nullptr, // vertical tracking wheel 2
-	&x_tracking_wheel, // horizontal tracking wheel 1
-    nullptr, // we don't have a second tracking wheel, so we set it to nullptr
-    &imu // inertial sensor
-};
-
-// forward/backward PID (untuned)
-lemlib::ControllerSettings lateralController {
-    00000000000000, // kP
-	00000000000000, // kI
-    00000000000000, // kD
-	0, // WindupRange
-    1, // smallErrorRange
-    100, // smallErrorTimeout
-    3, // largeErrorRange
-    500, // largeErrorTimeout
-    10 // slew rate
-};
- 
-// turning PID (untuned)
-lemlib::ControllerSettings angularController {
-    00000000000000, // kP
-	00000000000000, // kI
-    00000000000000, // kD
-	0, // WindupRange
-    1, // smallErrorRange
-    100, // smallErrorTimeout
-    3, // largeErrorRange
-    500, // largeErrorTimeout
-    10 // slew rate
-};
-
-lemlib::Chassis chassis(
-	drivetrain,
-	lateralController,
-	angularController,
-	sensors
-);
-
-
+/**
+ * Runs initialization code. This occurs as soon as the program is started.
+ *
+ * All other competition modes are blocked by initialize; it is recommended
+ * to keep execution time for this mode under a few seconds.
+ */
 void initialize() {
-	chassis.calibrate();
-	chassis.setPose(0, 0, 0);
-	left_drive.set_brake_mode_all(pros::MotorBrake::brake);
-	right_drive.set_brake_mode_all(pros::MotorBrake::brake);
 	pros::lcd::initialize();
 }
 
+/**
+ * Runs while the robot is in the disabled state of Field Management System or
+ * the VEX Competition Switch, following either autonomous or opcontrol. When
+ * the robot is enabled, this task will exit.
+ */
 void disabled() {}
 
+/**
+ * Runs after initialize(), and before autonomous when connected to the Field
+ * Management System or the VEX Competition Switch. This is intended for
+ * competition-specific initialization routines, such as an autonomous selector
+ * on the LCD.
+ *
+ * This task will exit when the robot is enabled and autonomous or opcontrol
+ * starts.
+ */
 void competition_initialize() {}
 
+/**
+ * Runs the user autonomous code. This function will be started in its own task
+ * with the default priority and stack size whenever the robot is enabled via
+ * the Field Management System or the VEX Competition Switch in the autonomous
+ * mode. Alternatively, this function may be called in initialize or opcontrol
+ * for non-competition testing purposes.
+ *
+ * If the robot is disabled or communications is lost, the autonomous task
+ * will be stopped. Re-enabling the robot will restart the task, not re-start it
+ * from where it left off.
+ */
 void autonomous() {}
 
+/**
+ * Runs the operator control code. This function will be started in its own task
+ * with the default priority and stack size whenever the robot is enabled via
+ * the Field Management System or the VEX Competition Switch in the operator
+ * control mode.
+ *
+ * If no competition control is connected, this function will run immediately
+ * following initialize().
+ *
+ * If the robot is disabled or communications is lost, the
+ * operator control task will be stopped. Re-enabling the robot will restart the
+ * task, not resume it from where it left off.
+ */
 void opcontrol() {
 	double drive, turn;
 	
 	while(true) {
-		drive = master.get_analog(ANALOG_LEFT_Y) / 127.0;
-		turn = master.get_analog(ANALOG_RIGHT_X) / 127.0;
-		if (drive < 0.5) {
-			turn /= 1.4;
-		} else {
-			turn /= 1.2;
-		}
-		left_drive.move_voltage((drive + turn)*12000);
-		right_drive.move_voltage((drive - turn)*12000);
+		// drive = master.get_analog(ANALOG_LEFT_Y) / 127.0;
+		// turn = master.get_analog(ANALOG_RIGHT_X) / 127.0;
+		// if (drive < 0.5) {
+		// 	turn /= 1.4;
+		// } else {
+		// 	turn /= 1.2;
+		// }
+		// left_drive.move_voltage((drive + turn)*12000);
+		// right_drive.move_voltage((drive - turn)*12000);
 
 
-		if(master.get_digital(DIGITAL_R2)) {
+		if (master.get_digital(DIGITAL_R2)) {
 			intake.move_voltage(12000);
 		} else if (master.get_digital(DIGITAL_R1)) {
 			intake.move_voltage(-12000);
 		} else {
 			intake.move_voltage(0);
 		}
-
-
-		if( !master.get_digital(DIGITAL_L2) && master.get_digital(DIGITAL_L1) ) {
-			back_left_wing.set_value(true);
-			back_right_wing.set_value(true);
-		} else {
-			back_left_wing.set_value(false);
-			back_right_wing.set_value(false);
-		}
-		
-		if( !master.get_digital(DIGITAL_L1) && master.get_digital(DIGITAL_L2) ) {
-			front_right_wing.set_value(true);
-			front_left_wing.set_value(true);
-		} else {
-			front_right_wing.set_value(false);
-			front_left_wing.set_value(false);
-		}
-
-		master.print(0, 1, "x: %f", chassis.getPose().x);
-		master.print(1, 1, "y: %f", chassis.getPose().y);
-		master.print(2, 1, "heading: %f", chassis.getPose().theta);
-		master.clear();
-
 	}
 }
